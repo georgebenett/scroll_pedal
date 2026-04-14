@@ -1,5 +1,5 @@
 /*
- * Button driver: long-press and release events.
+ * Button driver: long-press and release events, multi-instance.
  */
 
 #ifndef BUTTON_H
@@ -24,11 +24,22 @@ typedef enum {
 
 typedef void (*button_callback_t)(button_event_t event, void *user_data);
 
-/** Initialize button (uses HW_GPIO_BUTTON and timing from hw_config). */
-esp_err_t button_init(void);
+typedef struct button_s *button_handle_t;
 
-void button_register_callback(button_callback_t callback, void *user_data);
-void button_start_monitoring(void);
+/**
+ * Create a button instance on the given GPIO.
+ * Must be called after gpio_install_isr_service().
+ *
+ * @param gpio           GPIO number
+ * @param long_press_ms  Time held (ms) to fire BUTTON_EVENT_LONG_PRESS
+ * @param active_low     True if pressed = GPIO low
+ * @param out            Receives the created handle
+ */
+esp_err_t button_create(gpio_num_t gpio, uint32_t long_press_ms, bool active_low,
+                        button_handle_t *out);
+
+void button_register_callback(button_handle_t btn, button_callback_t callback, void *user_data);
+void button_start_monitoring(button_handle_t btn);
 
 #ifdef __cplusplus
 }

@@ -105,9 +105,9 @@ void power_init(void)
     ESP_LOGI(TAG, "Power latch asserted");
 }
 
-void power_register_button_callback(void)
+void power_register_button_callback(button_handle_t btn)
 {
-    button_register_callback(power_button_callback, NULL);
+    button_register_callback(btn, power_button_callback, NULL);
 }
 
 void power_shutdown(void)

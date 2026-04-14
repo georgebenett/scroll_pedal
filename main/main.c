@@ -6,6 +6,7 @@
 #include "nvs_flash.h"
 #include "driver/gpio.h"
 
+#include "hw_config.h"
 #include "hid_pedal.h"
 #include "button.h"
 #include "power.h"
@@ -61,10 +62,15 @@ void app_main(void)
     /* Install GPIO ISR service (shared by button driver). */
     ESP_ERROR_CHECK(gpio_install_isr_service(0));
 
-    ESP_ERROR_CHECK(button_init());
-    power_register_button_callback();
-    button_register_callback(scroll_button_cb, NULL);
-    button_start_monitoring();
+    button_handle_t power_btn, scroll_btn;
+    ESP_ERROR_CHECK(button_create(HW_GPIO_BUTTON,     BUTTON_LONG_PRESS_TIME_MS, true, &power_btn));
+    ESP_ERROR_CHECK(button_create(HW_GPIO_SCROLL_PIN, BUTTON_LONG_PRESS_TIME_MS, true, &scroll_btn));
+
+    power_register_button_callback(power_btn);
+    button_register_callback(scroll_btn, scroll_button_cb, NULL);
+
+    button_start_monitoring(power_btn);
+    button_start_monitoring(scroll_btn);
 
     led_start();
 }

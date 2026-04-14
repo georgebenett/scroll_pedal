@@ -6,6 +6,7 @@
 #define POWER_H
 
 #include "esp_err.h"
+#include "button.h"
 #include <stdbool.h>
 
 #ifdef __cplusplus
@@ -19,9 +20,9 @@ extern "C" {
 void power_init(void);
 
 /**
- * @brief Register the power button callback with the button module. Call after button_init().
+ * @brief Register the power button callback on the given button handle. Call after button_create().
  */
-void power_register_button_callback(void);
+void power_register_button_callback(button_handle_t btn);
 
 /**
  * @brief Turn off the device: release power latch and enter deep sleep. Button wake re-powers on.

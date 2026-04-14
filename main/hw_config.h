@@ -12,15 +12,9 @@
 /** Status LED (e.g. BLE advertising / connection state) */
 #define HW_GPIO_STATUS_LED           42
 
-/* ---------------------------------------------------------------------------
- * Battery & power
- * --------------------------------------------------------------------------- */
-/** Battery voltage measurement (ADC) */
-#define HW_GPIO_BATTERY_VOLTAGE      1
-/** Battery charging status input */
-#define HW_GPIO_BATTERY_CHARGE_STAT  2
-/** Battery probe pin */
-#define HW_GPIO_BATTERY_PROBE        3
+
+/** Scroll button */
+#define HW_GPIO_SCROLL_PIN        3
 /** Power enable — assert as early as possible in boot to latch power */
 #define HW_GPIO_POWER_ENABLE         4
 
