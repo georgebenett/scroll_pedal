@@ -18,6 +18,17 @@ static const char *TAG = "MAIN";
 #define DOUBLE_PRESS_WINDOW_US  (400 * 1000)
 
 static int64_t s_last_press_us = 0;
+static int64_t s_power_last_press_us = 0;
+
+static void power_button_extra_cb(button_event_t event, void *arg)
+{
+    if (event != BUTTON_EVENT_PRESSED) return;
+    int64_t now = esp_timer_get_time();
+    if (now - s_power_last_press_us < DOUBLE_PRESS_WINDOW_US) {
+        hid_pedal_disconnect();
+    }
+    s_power_last_press_us = now;
+}
 
 static void scroll_button_cb(button_event_t event, void *arg)
 {
@@ -67,6 +78,7 @@ void app_main(void)
     ESP_ERROR_CHECK(button_create(HW_GPIO_SCROLL_PIN, BUTTON_LONG_PRESS_TIME_MS, true, &scroll_btn));
 
     power_register_button_callback(power_btn);
+    button_register_callback(power_btn, power_button_extra_cb, NULL);
     button_register_callback(scroll_btn, scroll_button_cb, NULL);
 
     button_start_monitoring(power_btn);

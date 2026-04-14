@@ -26,6 +26,9 @@ void hid_pedal_scroll(int8_t delta);
 /** Returns true while a host is connected. */
 bool hid_pedal_is_connected(void);
 
+/** Disconnect the current BLE host (no-op if not connected). */
+void hid_pedal_disconnect(void);
+
 #ifdef __cplusplus
 }
 #endif

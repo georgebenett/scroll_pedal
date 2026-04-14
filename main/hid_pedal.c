@@ -25,6 +25,7 @@
 #include "esp_bt_main.h"
 #include "esp_hidd.h"
 #include "esp_hidd_gatts.h"
+#include "esp_timer.h"
 
 static const char *TAG = "HID_PEDAL";
 
@@ -81,8 +82,23 @@ static esp_hid_device_config_t s_hid_config = {
     .report_maps_len   = 1,
 };
 
-static esp_hidd_dev_t *s_hid_dev   = NULL;
-static volatile bool   s_connected = false;
+static esp_hidd_dev_t  *s_hid_dev           = NULL;
+static volatile bool    s_connected         = false;
+static esp_bd_addr_t    s_peer_bda;
+static bool             s_have_peer         = false;
+static bool             s_manual_disconnect = false;
+static esp_timer_handle_t s_adv_timer       = NULL;
+
+/* Delay (µs) before re-advertising after a manual disconnect.
+ * Long enough that the old phone's auto-reconnect doesn't win the race,
+ * short enough that the new phone connects quickly once you tap it. */
+#define ADV_RESTART_DELAY_US  (5 * 1000 * 1000)   /* 5 s */
+
+static void adv_restart_cb(void *arg)
+{
+    ESP_LOGI("HID_PEDAL", "Restarting advertising");
+    esp_hid_ble_gap_adv_start();
+}
 
 /* ---- HID device event callback ----------------------------------------- */
 
@@ -122,7 +138,15 @@ static void hidd_event_callback(void *handler_args, esp_event_base_t base,
                      esp_hidd_dev_transport_get(param->disconnect.dev),
                      param->disconnect.reason));
         s_connected = false;
-        esp_hid_ble_gap_adv_start();
+        if (s_manual_disconnect) {
+            s_manual_disconnect = false;
+            /* Delay re-advertising so the old phone's auto-reconnect
+             * doesn't immediately win. The other phone connects during
+             * this window using its existing bond — no re-pairing needed. */
+            esp_timer_start_once(s_adv_timer, ADV_RESTART_DELAY_US);
+        } else {
+            esp_hid_ble_gap_adv_start();
+        }
         break;
 
     case ESP_HIDD_STOP_EVENT:
@@ -134,6 +158,20 @@ static void hidd_event_callback(void *handler_args, esp_event_base_t base,
     }
 }
 
+/* ---- GATTS wrapper: captures peer address then delegates --------------- */
+
+static void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if,
+                                 esp_ble_gatts_cb_param_t *param)
+{
+    if (event == ESP_GATTS_CONNECT_EVT) {
+        memcpy(s_peer_bda, param->connect.remote_bda, sizeof(esp_bd_addr_t));
+        s_have_peer = true;
+    } else if (event == ESP_GATTS_DISCONNECT_EVT) {
+        s_have_peer = false;
+    }
+    esp_hidd_gatts_event_handler(event, gatts_if, param);
+}
+
 /* ---- Stub required by esp_hid_gap.c ------------------------------------ */
 void ble_hid_task_start_up(void) {}
 
@@ -142,6 +180,12 @@ void ble_hid_task_start_up(void) {}
 esp_err_t hid_pedal_init(void)
 {
     esp_err_t ret;
+
+    esp_timer_create_args_t ta = {
+        .callback = adv_restart_cb,
+        .name     = "adv_restart",
+    };
+    ESP_ERROR_CHECK(esp_timer_create(&ta, &s_adv_timer));
 
     ret = esp_hid_gap_init(HIDD_BLE_MODE);
     if (ret != ESP_OK) {
@@ -155,7 +199,7 @@ esp_err_t hid_pedal_init(void)
         return ret;
     }
 
-    ret = esp_ble_gatts_register_callback(esp_hidd_gatts_event_handler);
+    ret = esp_ble_gatts_register_callback(gatts_event_handler);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "GATTS register callback failed: %s", esp_err_to_name(ret));
         return ret;
@@ -195,4 +239,14 @@ void hid_pedal_scroll(int8_t delta)
 bool hid_pedal_is_connected(void)
 {
     return s_connected;
+}
+
+void hid_pedal_disconnect(void)
+{
+    if (!s_connected || !s_have_peer) {
+        return;
+    }
+    ESP_LOGI(TAG, "Disconnecting BLE host (bond kept)");
+    s_manual_disconnect = true;
+    esp_ble_gap_disconnect(s_peer_bda);
 }
