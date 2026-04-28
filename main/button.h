@@ -13,8 +13,8 @@
 extern "C" {
 #endif
 
-/** Time (ms) button must be held to trigger long press (hold to power off). Used by power for wake-from-sleep too. */
-#define BUTTON_LONG_PRESS_TIME_MS  2000
+/** Time (ms) button must be held to fire BUTTON_EVENT_LONG_PRESS (unused — power off is inactivity-based). */
+#define BUTTON_LONG_PRESS_TIME_MS  5000
 
 typedef enum {
     BUTTON_EVENT_PRESSED,

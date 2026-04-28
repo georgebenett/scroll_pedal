@@ -1,5 +1,5 @@
 /*
- * Power control: latch and hold-button-to-turn-off (same logic as gb_remote).
+ * Power control: latch power on boot, inactivity timeout to power off.
  */
 
 #include "power.h"
@@ -9,13 +9,16 @@
 #include "freertos/task.h"
 #include "esp_log.h"
 #include "esp_sleep.h"
+#include "esp_timer.h"
 #include "driver/gpio.h"
 
 #define TAG "POWER"
 #define WAKE_DEBOUNCE_MS   50
-#define WAKE_POLL_MS       10
 
-static bool s_button_released_since_boot;
+/* Power off after this many microseconds with no button activity. */
+#define INACTIVITY_TIMEOUT_US  ((int64_t)5 * 60 * 1000 * 1000)   /* 5 minutes */
+
+static esp_timer_handle_t s_inactivity_timer;
 
 static void power_enter_sleep(void)
 {
@@ -61,34 +64,28 @@ static bool power_check_wake_from_sleep(void)
         power_enter_sleep();
     }
 
-    ESP_LOGI(TAG, "Long press detected — powering on");
+    ESP_LOGI(TAG, "Button held — powering on");
     return true;
+}
+
+static void inactivity_timer_cb(void *arg)
+{
+    ESP_LOGI(TAG, "Inactivity timeout — shutting down");
+    power_shutdown();
 }
 
 static void power_button_callback(button_event_t event, void *user_data)
 {
     (void)user_data;
-    switch (event) {
-        case BUTTON_EVENT_RELEASED:
-            s_button_released_since_boot = true;
-            break;
-        case BUTTON_EVENT_LONG_PRESS:
-            if (!s_button_released_since_boot) {
-                ESP_LOGI(TAG, "Long press ignored — release button once after boot first");
-                break;
-            }
-            ESP_LOGI(TAG, "Hold to power off — shutting down");
-            power_shutdown();
-            break;
-        default:
-            break;
+    /* Any button activity resets the inactivity timer. */
+    if (event == BUTTON_EVENT_PRESSED || event == BUTTON_EVENT_RELEASED) {
+        esp_timer_stop(s_inactivity_timer);
+        esp_timer_start_once(s_inactivity_timer, INACTIVITY_TIMEOUT_US);
     }
 }
 
 void power_init(void)
 {
-    s_button_released_since_boot = false;
-
     if (!power_check_wake_from_sleep()) {
         power_enter_sleep();
     }
@@ -103,6 +100,14 @@ void power_init(void)
     ESP_ERROR_CHECK(gpio_config(&io));
     gpio_set_level(HW_GPIO_POWER_ENABLE, 1);
     ESP_LOGI(TAG, "Power latch asserted");
+
+    esp_timer_create_args_t timer_args = {
+        .callback = inactivity_timer_cb,
+        .name = "inactivity",
+    };
+    ESP_ERROR_CHECK(esp_timer_create(&timer_args, &s_inactivity_timer));
+    ESP_ERROR_CHECK(esp_timer_start_once(s_inactivity_timer, INACTIVITY_TIMEOUT_US));
+    ESP_LOGI(TAG, "Inactivity timeout: 5 minutes");
 }
 
 void power_register_button_callback(button_handle_t btn)

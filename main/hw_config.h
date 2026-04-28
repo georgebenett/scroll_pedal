@@ -13,8 +13,6 @@
 #define HW_GPIO_STATUS_LED           42
 
 
-/** Scroll button */
-#define HW_GPIO_SCROLL_PIN        3
 /** Power enable — assert as early as possible in boot to latch power */
 #define HW_GPIO_POWER_ENABLE         4
 
@@ -22,7 +20,7 @@
 /* ---------------------------------------------------------------------------
  * User input
  * --------------------------------------------------------------------------- */
-/** Button input */
+/** Single button: short press = scroll, hold 5 s = power off */
 #define HW_GPIO_BUTTON               11
 
 #endif /* HW_CONFIG_H */
