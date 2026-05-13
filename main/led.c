@@ -12,7 +12,7 @@
 #define LEDC_DUTY_RES        LEDC_TIMER_8_BIT   /* 0–255 */
 #define LEDC_FREQ_HZ         5000
 
-#define DUTY_FAINT           5   /* dim when not connected */
+#define DUTY_FAINT           50   /* dim when not connected */
 #define DUTY_MAX             255  /* full brightness when connected */
 #define POLL_MS              100
 

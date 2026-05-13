@@ -26,6 +26,7 @@
 #include "esp_hidd.h"
 #include "esp_hidd_gatts.h"
 #include "esp_timer.h"
+#include "hw_config.h"
 
 static const char *TAG = "HID_PEDAL";
 
@@ -75,9 +76,9 @@ static esp_hid_device_config_t s_hid_config = {
     .vendor_id         = 0x16C0,
     .product_id        = 0x05DF,
     .version           = 0x0100,
-    .device_name       = "scroll pedal",
+    .device_name       = BLE_DEVICE_NAME,
     .manufacturer_name = "GB",
-    .serial_number     = "0001",
+    .serial_number     = "0002",
     .report_maps       = s_report_maps,
     .report_maps_len   = 1,
 };

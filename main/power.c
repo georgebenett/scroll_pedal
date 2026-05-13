@@ -16,7 +16,7 @@
 #define WAKE_DEBOUNCE_MS   50
 
 /* Power off after this many microseconds with no button activity. */
-#define INACTIVITY_TIMEOUT_US  ((int64_t)5 * 60 * 1000 * 1000)   /* 5 minutes */
+#define INACTIVITY_TIMEOUT_US  ((int64_t)10 * 60 * 1000 * 1000)  /* 10 minutes */
 
 static esp_timer_handle_t s_inactivity_timer;
 
@@ -77,10 +77,17 @@ static void inactivity_timer_cb(void *arg)
 static void power_button_callback(button_event_t event, void *user_data)
 {
     (void)user_data;
-    /* Any button activity resets the inactivity timer. */
-    if (event == BUTTON_EVENT_PRESSED || event == BUTTON_EVENT_RELEASED) {
-        esp_timer_stop(s_inactivity_timer);
-        esp_timer_start_once(s_inactivity_timer, INACTIVITY_TIMEOUT_US);
+    switch (event) {
+        case BUTTON_EVENT_PRESSED:
+        case BUTTON_EVENT_RELEASED:
+            /* Any activity resets the inactivity timer. */
+            esp_timer_stop(s_inactivity_timer);
+            esp_timer_start_once(s_inactivity_timer, INACTIVITY_TIMEOUT_US);
+            break;
+        case BUTTON_EVENT_LONG_PRESS:
+            ESP_LOGI(TAG, "15 s hold — shutting down");
+            power_shutdown();
+            break;
     }
 }
 
